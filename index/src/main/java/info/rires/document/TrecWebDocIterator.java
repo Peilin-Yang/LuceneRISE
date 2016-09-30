@@ -54,21 +54,31 @@ public class TrecWebDocIterator implements Iterator<Document> {
         try {
             String line;
             Pattern docno_tag = Pattern.compile("<DOCNO>\\s*(\\S+)\\s*<");
-            boolean in_doc = false;
+            boolean in_doc = false, found_hdr = false;
             while (true) {
                 line = this.br.readLine();
                 if (line == null) {
                     at_eof = true;
                     break;
                 }
-                if (!in_doc) {
-                    if (line.startsWith("<DOC>"))
-                        in_doc = true;
-                    else
+                if (in_doc) {
+                    if (line.startsWith("<DOCHDR>")) {
+                        found_hdr = true;
                         continue;
+                    } else if (line.startsWith("</DOCHDR>")) {
+                        found_hdr = false;
+                        continue;
+                    }
+                } else {
+                    if (line.startsWith("<DOC>")) {
+                        in_doc = true;
+                    } else {
+                        continue;
+                    }
                 }
                 if (line.startsWith("</DOC>")) {
                     in_doc = false;
+                    found_hdr = false;
                     sb.append(line);
                     break;
                 }
@@ -79,7 +89,9 @@ public class TrecWebDocIterator implements Iterator<Document> {
                     doc.add(new StringField("docno", docno, Field.Store.YES));
                 }
 
-                sb.append(line);
+                if (!found_hdr) {
+                    sb.append(line);
+                }
             }
             if (sb.length() > 0)
                 doc.add(new TextField("contents", sb.toString(), Field.Store.NO));
